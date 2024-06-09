@@ -4,6 +4,7 @@ import cv2
 import numpy as np
 import pandas
 import pathlib
+import time
 from pathlib import Path
 pathlib.PosixPath = pathlib.WindowsPath
 
@@ -43,6 +44,10 @@ previous_detections = []
 stability_counter = 0
 stability_threshold = 5  # Número de frames para considerar una detección estable
 
+# Inicializa variables para calcular FPS
+prev_time = time.time()
+fps = 0
+
 while(True):
     print("Lectura de frames...")
     # Lectura de frames
@@ -50,7 +55,15 @@ while(True):
     if not ret:
         print("Error: No se puede leer el frame del video")
         break
-    
+
+    # Calcula el FPS
+    curr_time = time.time()
+    fps = 1 / (curr_time - prev_time)
+    prev_time = curr_time
+
+    # Dibuja el FPS en el frame
+    cv2.putText(frame, f"FPS: {fps:.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+
     print("Detectando con el modelo...")
     # Detecciones
     detect = model(frame)
@@ -70,7 +83,7 @@ while(True):
     else:
         stability_counter = 0
 
-    # Si los detections son estables durante el umbral de estabilidad
+    # Si las detecciones son estables durante el umbral de estabilidad
     if stability_counter >= stability_threshold:
         if filtered_detections:
             # Crear un nuevo tensor de detecciones filtradas
@@ -80,6 +93,9 @@ while(True):
             # Renderiza las detecciones
             rendered_frame = np.squeeze(detect.render())
             
+            # Dibuja el FPS en el frame renderizado
+            cv2.putText(rendered_frame, f"FPS: {fps:.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+
             # Guarda el fotograma procesado en el archivo de video
             out.write(rendered_frame)
             
@@ -87,13 +103,16 @@ while(True):
             file_path = f'C:/Users/User/Desktop/autodetec/demo/imagenes/ss_{image_counter:04d}.jpeg'
             cv2.imwrite(file_path, rendered_frame)
             
-            # Mostramos los FPS
+            # Muestra el frame renderizado con FPS
             cv2.imshow('Detector de Gatos', rendered_frame)
 
             image_counter += 1
 
         # Reiniciar el contador de estabilidad
         stability_counter = 0
+    else:
+        # Muestra el frame original con el FPS
+        cv2.imshow('Detector de Gatos', frame)
 
     # Actualizar las detecciones anteriores
     previous_detections = filtered_detections_list
